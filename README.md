@@ -1,67 +1,94 @@
-# 🎮 Motor de Videojuego en Consola (Examen Final)
+# 🎮 Motor de Videojuego: Space Invaders Simplificado (Examen Final)
 
 ## 📝 Temática Elegida
-El proyecto consiste en un **Motor de Videojuego 2D de Acción/Supervivencia** simulado por consola. El jugador controla a una entidad que se desplaza por un espacio virtual e interactúa con enemigos. El motor simula en tiempo real un ciclo de juego (*Game Loop*), gestionando cambios de estado (pausa, reanudación, colisiones, pérdida de vida), eventos del ciclo de vida y un sistema de guardado rápido en formato JSON estructurado.
+El proyecto consiste en una simulación textual en consola basada en el clásico videojuego **Space Invaders**. El jugador controla una nave que se desplaza de forma lateral y dispara proyectiles para destruir oleadas de naves enemigas invasoras, utilizando estructuras de defensa estáticas para resguardarse de los ataques. El motor gestiona el ciclo de juego (*Game Loop*), los estados de la partida, el cálculo matemático de colisiones y un sistema de volcado de datos (*Quick Save*) en formato JSON.
 
 ---
 
 ## 🏗️ Arquitectura del Software
-El sistema está diseñado bajo el paradigma de Programación Orientada a Objetos (POO), estructurado en las siguientes clases:
+El diseño se compone de **9 clases bien definidas**, aplicando herencia, modularidad y encapsulación según los principios de la POO:
 
-* **`EntidadVideojuego`**: Clase base que encapsula las propiedades espaciales comunes de todos los elementos del juego (`x, y, ancho, alto`), su estado vital (`vida`), nombre y la ruta de su `imagen` para la futura interfaz.
-* **`Jugador`**: Clase hija que hereda de `EntidadVideojuego`. Añade atributos específicos como la `puntuacion` y lógica propia para `sumarPuntos()`.
-* **`MotorJuego`**: El núcleo del motor. Controla el estado general de la partida (`estado`) y gestiona una lista dinámica de entidades, coordinando el ciclo de actualización (`actualizar()`), colisiones y el volcado de datos (`quickSave()`).
-* **`GestorEntradas`**: Clase encargada de simular las interacciones físicas del usuario en el dispositivo, traduciendo comandos a métodos como `moverJugador()` o `pulsarBotonAccion()`.
-* **`Main`**: Punto de entrada de la aplicación en Java. Coordina la ejecución secuencial de la prueba, instanciando el motor y simulando el flujo de juego visible en la consola.
+* **`Main`**: Clase conductora del programa. Ejecuta de forma secuencial la simulación del ciclo de juego e inyecta los comandos del usuario.
+* **`MotorJuego`**: El cerebro del motor. Administra la máquina de estados (`MENU`, `JUGANDO`, `PAUSA`, `GAME_OVER`), la colección de entidades (jugador, enemigos, defensas, proyectiles) y la lógica global.
+* **`EntidadJuego`**: Clase abstracta base que unifica los atributos comunes espaciales (`x`, `y`, `ancho`, `alto`), el estado de salud/resistencia (`vida`), el nombre e identificadores de textura.
+* **`NaveJugador`**: Hereda de `EntidadJuego`. Añade lógica de movimiento restringido y control del disparo del usuario.
+* **`NaveEnemiga`**: Hereda de `EntidadJuego`. Modifica su posición de forma automatizada simulando un patrón de invasión lateral.
+* **`Defensa`**: Hereda de `EntidadJuego`. Estructura estática vulnerable encargada de absorber impactos para proteger al jugador.
+* **`Proyectil`**: Hereda de `EntidadJuego`. Entidad dinámica con dirección vertical orientada según su origen (jugador o enemigo).
+* **`GestorEntradas`**: Encargado de emular los inputs periféricos de teclado/ratón (`desplazarEntidad`, `pulsarBotonAccion`).
+* **`SistemaPuntuacion`**: Módulo aislado dedicado al cómputo de estadísticas de destrucción y puntuación acumulada.
 
 ---
 
 ## 📊 Diagramas UML (Mermaid)
 
 ### 1. Diagrama de Clases
-A continuación se detalla la estructura estática del sistema, sus métodos públicos, atributos privados y relaciones de asociación y herencia:
-
 ```mermaid
 classDiagram
-    class EntidadVideojuego {
+    class EntidadJuego {
+        <<abstract>>
         -String nombre
         -int x
         -int y
         -int ancho
         -int alto
         -int vida
-        -String imagen
         +getX() int
         +getY() int
         +setX(int x) void
         +setY(int y) void
+        +recibirDanio(int cantidad) void
     }
 
-    class Jugador {
-        -int puntuacion
-        +sumarPuntos(int puntos) void
+    class NaveJugador {
+        +disparar() Proyectil
+    }
+
+    class NaveEnemiga {
+        -int velocidadLateral
+        +actualizarPatron() void
+    }
+
+    class Defensa {
+        -int escudoMaximo
+    }
+
+    class Proyectil {
+        -boolean esEnemigo
+        +avanzar() void
     }
 
     class MotorJuego {
         -String estado
-        -List~EntidadVideojuego~ entidades
+        -List~EntidadJuego~ entidades
         +iniciarPartida() void
         +pausar() void
         +reanudar() void
         +actualizar() void
+        +verificarColisionesAABB() void
         +quickSave() String
     }
 
     class GestorEntradas {
-        +moverJugador(String direccion) void
-        +pulsarBotonAccion() void
+        +procesarComando(String cmd, MotorJuego motor) void
+    }
+
+    class SistemaPuntuacion {
+        -int score
+        +sumarPuntos(int puntos) void
+        +getScore() int
     }
 
     class Main {
         +main(args: String[]) void
     }
 
-    EntidadVideojuego <|-- Jugador
-    MotorJuego "1" --> "*" EntidadVideojuego : Gestiona
-    GestorEntradas ..> Jugador : Controla
-    Main ..> MotorJuego : Ejecuta
+    EntidadJuego <|-- NaveJugador
+    EntidadJuego <|-- NaveEnemiga
+    EntidadJuego <|-- Defensa
+    EntidadJuego <|-- Proyectil
+
+    MotorJuego "1" --> "*" EntidadJuego : Administra
+    MotorJuego "1" --> "1" SistemaPuntuacion : Registra
+    Main ..> MotorJuego : Instancia
+    GestorEntradas ..> MotorJuego : Modifica

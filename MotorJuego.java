@@ -1,140 +1,139 @@
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 public class MotorJuego {
-
-    private static final String MENU = "MENU";
-    private static final String JUGANDO = "JUGANDO";
-    private static final String PAUSA = "PAUSA";
-    private static final String GAME_OVER = "GAME_OVER";
-
     private String estado;
-    private List<EntidadVideojuego> entidades;
+    private List<EntidadJuego> entidades;
+    private NaveJugador jugador;
+    private SistemaPuntuacion sistemaPuntuacion;
 
     public MotorJuego() {
-        estado = MENU;
-        entidades = new ArrayList<>();
+        this.estado = "MENU";
+        this.entidades = new ArrayList<>();
+        this.sistemaPuntuacion = new SistemaPuntuacion();
     }
 
     public void iniciarPartida() {
-        estado = JUGANDO;
-        System.out.println("Partida iniciada");
+        this.estado = "JUGANDO";
+        System.out.println("Partida Iniciada");
+        
+        // Instanciar y añadir entidades básicas iniciales
+        this.jugador = new NaveJugador(10, 15);
+        this.entidades.add(jugador);
+        
+        this.entidades.add(new NaveEnemiga("Invasor_Alfa", 5, 2));
+        this.entidades.add(new NaveEnemiga("Invasor_Beta", 12, 2));
+        this.entidades.add(new Defensa(4, 12));
+        this.entidades.add(new Defensa(16, 12));
     }
 
     public void pausar() {
-        estado = PAUSA;
-        System.out.println("Juego pausado");
+        if (this.estado.equals("JUGANDO")) {
+            this.estado = "PAUSA";
+            System.out.println("Juego pausado");
+        }
     }
 
     public void reanudar() {
-        estado = JUGANDO;
-        System.out.println("Juego reanudado");
-    }
-
-    public void gameOver() {
-        estado = GAME_OVER;
-        System.out.println("GAME OVER");
-    }
-
-    public void agregarEntidad(EntidadVideojuego entidad) {
-        entidades.add(entidad);
-    }
-
-    public void eliminarEntidad(EntidadVideojuego entidad) {
-        entidades.remove(entidad);
+        if (this.estado.equals("PAUSA")) {
+            this.estado = "JUGANDO";
+            System.out.println("Juego reanudado");
+        }
     }
 
     public void actualizar() {
+        if (!this.estado.equals("JUGANDO")) return;
 
-        if (!estado.equals(JUGANDO)) {
-            return;
-        }
+        System.out.println("--- ACTUALIZANDO JUEGO ---");
+        List<EntidadJuego> aEliminar = new ArrayList<>();
+        List<Proyectil> proyectilesA_Avanzar = new ArrayList<>();
 
-        System.out.println("=== ACTUALIZANDO JUEGO ===");
+        // 1. Recorrer y procesar la IA/patrones de las entidades
+        for (EntidadJuego entidad : entidades) {
+            if (entidad instanceof NaveEnemiga) {
+                ((NaveEnemiga) entidad).actualizarPatron();
+            } else if (entidad instanceof Proyectil) {
+                proyectilesA_Avanzar.add((Proyectil) entidad);
+            }
 
-        for (EntidadVideojuego entidad : entidades) {
-
-            if (!entidad.getNombre().equals("Jugador")) {
-
-                entidad.setX(entidad.getX() - 1);
-
-                System.out.println(entidad);
+            // Marcar muertas si su vida es 0
+            if (entidad.getVida() <= 0) {
+                aEliminar.add(entidad);
             }
         }
 
-        detectarColisiones();
+        // Avanzar proyectiles
+        for (Proyectil p : proyectilesA_Avanzar) {
+            p.avanzar();
+            // Eliminar si sale del mapa vertical
+            if (p.getY() < 0 || p.getY() > 20) {
+                aEliminar.add(p);
+            }
+        }
+
+        // Limpiar entidades muertas
+        for (EntidadJuego muerta : aEliminar) {
+            entidades.remove(muerta);
+            if (muerta instanceof NaveEnemiga) {
+                sistemaPuntuacion.sumarPuntos(100);
+            } else if (muerta instanceof NaveJugador) {
+                this.estado = "GAME_OVER";
+                System.out.println("GAME OVER");
+            }
+        }
+
+        // 2. Ejecutar Detección Avanzada de Colisiones
+        verificarColisionesAABB();
     }
 
-    private void detectarColisiones() {
+    public void verificarColisionesAABB() {
+        // Doble iteración clásica para comparar intersecciones de cajas
+        for (int i = 0; i < entidades.size(); i++) {
+            for (int j = i + 1; j < entidades.size(); j++) {
+                EntidadJuego e1 = entidades.get(i);
+                EntidadJuego e2 = entidades.get(j);
 
-        Jugador jugador = null;
-
-        for (EntidadVideojuego e : entidades) {
-            if (e instanceof Jugador) {
-                jugador = (Jugador) e;
-            }
-        }
-
-        if (jugador == null) {
-            return;
-        }
-
-        Iterator<EntidadVideojuego> it = entidades.iterator();
-
-        while (it.hasNext()) {
-
-            EntidadVideojuego entidad = it.next();
-
-            if (entidad == jugador) {
-                continue;
-            }
-
-            boolean colision =
-                    jugador.getX() < entidad.getX() + entidad.getAncho() &&
-                    jugador.getX() + jugador.getAncho() > entidad.getX() &&
-                    jugador.getY() < entidad.getY() + entidad.getAlto() &&
-                    jugador.getY() + jugador.getAlto() > entidad.getY();
-
-            if (colision) {
-
-                System.out.println("COLISION con " + entidad.getNombre());
-
-                jugador.setVida(jugador.getVida() - 10);
-
-                System.out.println("Vida jugador: " + jugador.getVida());
-
-                it.remove();
-
-                if (jugador.getVida() <= 0) {
-                    gameOver();
+                // Algoritmo matemático AABB
+                if (e1.getX() < e2.getX() + e2.getAncho() &&
+                    e1.getX() + e1.getAncho() > e2.getX() &&
+                    e1.getY() < e2.getY() + e2.getAlto() &&
+                    e1.getY() + e1.getAlto() > e2.getY()) {
+                    
+                    // Colisión detectada: Desencadenar lógica según las reglas de negocio
+                    procesarInterseccion(e1, e2);
                 }
             }
         }
     }
 
-    public String quickSave() {
-
-        StringBuilder sb = new StringBuilder();
-
-        sb.append("{\n");
-        sb.append("\"estado\":\"").append(estado).append("\",\n");
-
-        for (EntidadVideojuego e : entidades) {
-
-            sb.append("\"")
-                    .append(e.getNombre())
-                    .append("\":\"")
-                    .append(e.getX())
-                    .append(",")
-                    .append(e.getY())
-                    .append(",")
-                    .append(e.getVida())
-                    .append("\"\n");
+    private void procesarInterseccion(EntidadJuego e1, EntidadJuego e2) {
+        // Regla: Proyectil Aliado choca con Nave Enemiga
+        if (e1 instanceof Proyectil && !((Proyectil)e1).isEsEnemigo() && e2 instanceof NaveEnemiga) {
+            System.out.println("COLISION con Enemigo");
+            e2.recibirDanio(20);
+            e1.setVida(0); // Destruir proyectil
+        } else if (e2 instanceof Proyectil && !((Proyectil)e2).isEsEnemigo() && e1 instanceof NaveEnemiga) {
+            System.out.println("COLISION con Enemigo");
+            e1.recibirDanio(20);
+            e2.setVida(0);
         }
-
-        sb.append("}");
-
-        return sb.toString();
     }
+
+    public String quickSave() {
+        System.out.println("QUICK SAVE:");
+        StringBuilder json = new StringBuilder();
+        json.append("{\n");
+        json.append("  \"estado\": \"").append(this.estado).append("\",\n");
+        if (jugador != null) {
+            json.append("  \"Jugador\": \"").append(jugador.getX()).append(",")
+                .append(jugador.getY()).append(",").append(jugador.getVida()).append("\",\n");
+        }
+        json.append("  \"Puntuacion\": ").append(sistemaPuntuacion.getScore()).append("\n");
+        json.append("}");
+        return json.toString();
+    }
+
+    public void agregarEntidad(EntidadJuego e) { this.entidades.add(e); }
+    public String getEstado() { return estado; }
+    public NaveJugador getJugador() { return jugador; }
 }

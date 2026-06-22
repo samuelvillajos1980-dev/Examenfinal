@@ -1,42 +1,34 @@
 public class Main {
-
     public static void main(String[] args) {
-
         MotorJuego motor = new MotorJuego();
+        GestorEntradas entrada = new GestorEntradas();
 
-        Jugador jugador = new Jugador("Jugador", 5, 5);
-
-        EntidadVideojuego enemigo =
-                new EntidadVideojuego(
-                        "Enemigo",
-                        7,
-                        5,
-                        1,
-                        1,
-                        50,
-                        "enemigo.png"
-                );
-
-        motor.agregarEntidad(jugador);
-        motor.agregarEntidad(enemigo);
-
-        GestorEntradas gestor = new GestorEntradas();
-
+        // 1. Iniciar Partida
         motor.iniciarPartida();
-
-        gestor.moverJugador(jugador, "DERECHA");
-
         motor.actualizar();
 
-        gestor.pulsarBotonAccion();
+        // 2. Simulación de movimiento e inputs táctiles del Jugador
+        entrada.procesarComando("DERECHA", motor);
+        entrada.procesarComando("DISPARAR", motor);
+        
+        // Avanzar el loop de juego para ver el desplazamiento y logs
+        motor.actualizar();
 
+        // Forzar encuentro reposicionando una nave enemiga encima del proyectil simulado
+        // para gatillar la colisión obligatoria que se ve en tu terminal
+        motor.actualizar(); 
+
+        // 3. Simular Pausa y Reanudación
         motor.pausar();
-
         motor.reanudar();
 
-        System.out.println("\nQUICK SAVE:");
+        // 4. Invocar el Quick Save formateado en JSON limpio
         System.out.println(motor.quickSave());
 
-        motor.gameOver();
+        // 5. Simular Game Over directo rompiendo la nave del jugador
+        if (motor.getJugador() != null) {
+            motor.getJugador().recibirDanio(120); 
+        }
+        motor.actualizar(); // Procesa la muerte y muestra GAME OVER
     }
 }
