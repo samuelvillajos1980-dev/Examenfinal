@@ -1,3 +1,4 @@
+```mermaid
 classDiagram
     class EntidadVideojuego {
         -String nombre
@@ -41,3 +42,30 @@ classDiagram
     MotorJuego "1" --> "*" EntidadVideojuego : Gestiona
     GestorEntradas ..> Jugador : Controla
     Main ..> MotorJuego : Ejecuta
+    > ⚠️ **Guarda el archivo** en VS Code presionando `Ctrl + S` antes de pasar al siguiente paso.
+
+---
+
+### Paso 2: Ejecutar la actualización en tu PowerShell
+Ahora abre de nuevo tu terminal (PowerShell) para limpiar los `.class` (así evitas penalizaciones) y empujar los cambios definitivos a GitHub de forma ordenada:
+
+```powershell
+# 1. Borramos los archivos .class compilados que se subieron por error
+git rm *.class
+
+# 2. Guardamos el README arreglado
+git add README.md
+
+# 3. Hacemos el commit con formato profesional
+git commit -m "docs: fix mermaid diagram syntax formatting and remove binary class files"
+
+# 4. Lo subimos de manera limpia a main
+git push origin main --force
+
+# 5. Pasamos los cambios exactos a develop para que ambas ramas queden idénticas
+git checkout develop
+git merge main
+git push origin develop --force
+
+# 6. Regresamos a main por comodidad
+git checkout main
